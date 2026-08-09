@@ -75,6 +75,11 @@ window.onload = function () {
 
     document.addEventListener("keydown", handleKeyDown);
     document.addEventListener("keyup", handleKeyUp);
+    
+    // Mobile Touch Controls
+    document.addEventListener("touchstart", handleTouchStart, { passive: false });
+    document.addEventListener("touchend", handleTouchEnd, { passive: false });
+    
     requestAnimationFrame(update);
 }
 
@@ -101,7 +106,7 @@ function update() {
         context.fillText("Score: " + score, boardWidth / 2, boardHeight / 2 + 10);
         
         context.font = "12px 'Press Start 2P', sans-serif";
-        context.fillText("Press SPACE to Restart", boardWidth / 2, boardHeight / 2 + 60);
+        context.fillText("Press SPACE or TAP to Restart", boardWidth / 2, boardHeight / 2 + 60);
         context.textAlign = "left"; // reset
         return;
     }
@@ -197,7 +202,7 @@ function drawStartScreen() {
     context.fillText("DOODLE JUMP", boardWidth / 2, boardHeight / 2 - 40);
     
     context.font = "12px 'Press Start 2P', sans-serif";
-    context.fillText("Press SPACE to Start", boardWidth / 2, boardHeight / 2 + 20);
+    context.fillText("Press SPACE or TAP to Start", boardWidth / 2, boardHeight / 2 + 20);
     context.textAlign = "left"; // reset
 }
 
@@ -224,6 +229,30 @@ function handleKeyUp(e) {
     else if (e.code == "ArrowLeft" || e.code == "KeyA") {
         keys.left = false;
     }
+}
+
+function handleTouchStart(e) {
+    e.preventDefault(); // prevent scrolling/zooming
+    if (gameState === 'start' || gameState === 'gameover') {
+        resetGame();
+        return;
+    }
+    
+    // Check where the touch occurred relative to the window
+    let touchX = e.touches[0].clientX;
+    if (touchX < window.innerWidth / 2) {
+        keys.left = true;
+        keys.right = false;
+    } else {
+        keys.right = true;
+        keys.left = false;
+    }
+}
+
+function handleTouchEnd(e) {
+    e.preventDefault();
+    keys.left = false;
+    keys.right = false;
 }
 
 function resetGame() {

@@ -10,6 +10,9 @@ body {
     align-items: center;
     height: 100vh;
     overflow: hidden;
+    touch-action: none; /* Prevent mobile browser zooming/scrolling */
+    user-select: none; /* Prevent text selection on tap */
+    -webkit-user-select: none;
 }
 
 .game-container {
