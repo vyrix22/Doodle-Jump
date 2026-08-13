@@ -23,8 +23,9 @@ let doodler = {
 //physics
 let velocityX = 0;
 let velocityY = 0; //doodler jump speed
-let initialVelocityY = -8; //starting velocity Y
-let gravity = 0.4;
+let initialVelocityY = -6; //starting velocity Y (slowed down for better control)
+let gravity = 0.3;
+let maxPlatformGap = 130; // max vertical pixels between platforms (must be jumpable)
 
 //platforms
 let platformArray = [];
@@ -188,7 +189,9 @@ function update() {
     // Draw score
     context.fillStyle = "black";
     context.font = "16px 'Press Start 2P', sans-serif";
-    context.fillText("Score: " + score, 10, 30);
+    context.textAlign = "center";
+    context.fillText("Score: " + score, boardWidth / 2, 30);
+    context.textAlign = "left"; // reset alignment for other draws
 }
 
 function drawStartScreen() {
@@ -287,12 +290,22 @@ function placePlatforms() {
     }
     platformArray.push(platform);
 
-    for (let i = 0; i < 6; i++) {
-        let randomX = Math.floor(Math.random() * (boardWidth - platformWidth)); 
+    let maxJumpReachX = 110;
+    let lastX = boardWidth / 2; // starting platform X
+    
+    // More platforms (9) with tighter spacing for a fair start
+    for (let i = 0; i < 9; i++) {
+        let minX = Math.max(0, lastX - maxJumpReachX);
+        let maxX = Math.min(boardWidth - platformWidth, lastX + maxJumpReachX);
+        let randomX = Math.floor(minX + Math.random() * (maxX - minX));
+        
+        // Vertical gap between 55-85px (comfortably jumpable)
+        let gap = 55 + Math.floor(Math.random() * 30);
+        
         let platform = {
             img: platformImg,
             x: randomX,
-            y: boardHeight - 75 * i - 150,
+            y: boardHeight - gap * (i + 1) - 50,
             width: platformWidth,
             height: platformHeight,
             type: 0,
@@ -300,11 +313,47 @@ function placePlatforms() {
             vx: 0
         }
         platformArray.push(platform);
+        lastX = randomX;
     }
 }
 
 function newPlatform() {
-    let randomX = Math.floor(Math.random() * (boardWidth - platformWidth)); 
+    let maxJumpReachX = 110;
+    
+    // --- Find the HIGHEST (smallest Y) non-broken platform as reference ---
+    let highestPlatform = null;
+    for (let i = 0; i < platformArray.length; i++) {
+        if (platformArray[i].type !== 1 && !platformArray[i].broken) {
+            if (!highestPlatform || platformArray[i].y < highestPlatform.y) {
+                highestPlatform = platformArray[i];
+            }
+        }
+    }
+    
+    // --- Constrain X so platforms are always reachable ---
+    let randomX;
+    if (highestPlatform) {
+        let minX = Math.max(0, highestPlatform.x - maxJumpReachX);
+        let maxX = Math.min(boardWidth - platformWidth, highestPlatform.x + maxJumpReachX);
+        randomX = Math.floor(minX + Math.random() * (maxX - minX));
+    } else {
+        randomX = Math.floor(Math.random() * (boardWidth - platformWidth));
+    }
+    
+    // --- Place Y relative to highest platform, NOT always at screen top ---
+    // This is the KEY fix: vertical gap is always jumpable
+    let newY;
+    if (highestPlatform) {
+        // Random gap between 60-maxPlatformGap above the highest platform
+        let gap = 60 + Math.floor(Math.random() * (maxPlatformGap - 60));
+        newY = highestPlatform.y - gap;
+        // Don't place below the top of the screen area
+        if (newY > -platformHeight) {
+            newY = -platformHeight;
+        }
+    } else {
+        newY = -platformHeight;
+    }
     
     // Determine platform type based on score to increase difficulty
     let type = 0;
@@ -334,7 +383,7 @@ function newPlatform() {
     let platform = {
         img: pImg,
         x: randomX,
-        y: -platformHeight,
+        y: newY,
         width: platformWidth,
         height: platformHeight,
         type: type,
@@ -343,6 +392,26 @@ function newPlatform() {
     }
 
     platformArray.push(platform);
+
+    // If this platform is broken, add a guaranteed solid platform nearby
+    if (type === 1) {
+        let safeMinX = Math.max(0, randomX - maxJumpReachX);
+        let safeMaxX = Math.min(boardWidth - platformWidth, randomX + maxJumpReachX);
+        let safeX = Math.floor(safeMinX + Math.random() * (safeMaxX - safeMinX));
+        
+        let safeGap = 60 + Math.floor(Math.random() * 40);
+        let safePlatform = {
+            img: platformImg,
+            x: safeX,
+            y: newY - safeGap,
+            width: platformWidth,
+            height: platformHeight,
+            type: 0,
+            vx: 0,
+            broken: false
+        }
+        platformArray.push(safePlatform);
+    }
 }
 
 function detectCollision(a, b) {
